@@ -72,7 +72,7 @@ public class InitModelMapper extends Mapper<Text, Text, Text, DocumentWritable> 
             keymap.put(key.toString(), value.get());
         }
         reader.close();
-        reader.end();
+        //reader.end();
         return keymap;
     }
 }
