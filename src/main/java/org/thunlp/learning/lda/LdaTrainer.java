@@ -80,9 +80,11 @@ public class LdaTrainer implements GenericTool {
         // Create model directory.
         Configuration conf = new Configuration();
         FileSystem fs = FileSystem.get(conf);
-        if (!fs.exists(workingDir)) {
+        /*if (!fs.exists(workingDir)) {
+            System.err.println("begin mkdir working");
             fs.mkdirs(workingDir);
-        }
+            System.err.println("end mkdir working");
+        }*/
 
         // Write model hyper-parameters to a file.
         Path parameters = new Path(workingDir, "parameters");
