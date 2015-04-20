@@ -6,11 +6,11 @@ import org.apache.hadoop.mapreduce.Reducer;
 import java.io.IOException;
 import java.util.Iterator;
 
-
 public class WordListCombiner extends Reducer<Text, Text, Text, Text> {
     Text outvalue = new Text();
 
-    public void reduce(Text key, Iterator<Text> values, Context context) throws IOException, InterruptedException {
+    public void reduce(Text key, Iterator<Text> values, Context context)
+            throws IOException, InterruptedException {
         long tf = 0;
         long df = 0;
         while (values.hasNext()) {

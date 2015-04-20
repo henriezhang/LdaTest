@@ -4,10 +4,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.thunlp.misc.AnyDoublePair;
 import org.thunlp.misc.Flags;
 import org.thunlp.tool.FolderReader;
@@ -21,6 +25,11 @@ import java.util.logging.Logger;
 
 public class InitModelTool implements GenericTool {
     private static Logger LOG = Logger.getAnonymousLogger();
+    Configuration conf = null;
+
+    public InitModelTool(Configuration conf) {
+        this.conf = conf;
+    }
 
     public void run(String[] args) throws Exception {
         Flags flags = new Flags();
@@ -122,35 +131,42 @@ public class InitModelTool implements GenericTool {
     public Map<String, WordFreq> loadWordFreq(Path sqfile)
             throws IOException {
         Hashtable<String, WordFreq> keymap = new Hashtable<String, WordFreq>();
-        FolderReader reader = new FolderReader(sqfile);
+        FileSystem fs = FileSystem.get(conf);
+        FolderReader reader = new FolderReader(sqfile, fs, conf);
         Text key = new Text();
         Text value = new Text();
         while (reader.next(key, value)) {
             WordFreq wf = new WordFreq();
             String str = value.toString();
             int split = str.indexOf(' ');
-            wf.tf = (double) Long.parseLong(str.substring(0, split));
-            wf.df = (double) Long.parseLong(str.substring(split + 1));
-            keymap.put(key.toString(), wf);
+            try {
+                wf.tf = (double) Long.parseLong(str.substring(0, split));
+                wf.df = (double) Long.parseLong(str.substring(split + 1));
+                keymap.put(key.toString(), wf);
+            } catch (Exception e) {
+                System.err.println("Format error="+e.getStackTrace());
+            }
         }
         reader.close();
         return keymap;
     }
 
     public void makeWordList(Path input, Path output) throws IOException, ClassNotFoundException, InterruptedException {
-        Configuration conf = new Configuration();
-        Job job = new Job(conf);
+        Job job = new Job(this.conf);
         job.setJobName("EstimateWordFreqForLDA");
+        job.setJarByClass(this.getClass());
 
         job.setMapperClass(WordListMapper.class);
-        job.setReducerClass(WordListReducer.class);
         job.setCombinerClass(WordListCombiner.class);
+        job.setReducerClass(WordListReducer.class);
+        job.setNumReduceTasks(40);
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(Text.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
-        job.setNumReduceTasks(20);
+        job.setInputFormatClass(SequenceFileInputFormat.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
         SequenceFileInputFormat.addInputPath(job, input);
         SequenceFileOutputFormat.setOutputPath(job, output);
@@ -164,33 +180,34 @@ public class InitModelTool implements GenericTool {
             Path wordlist,
             int numTopics,
             int numWords) throws IOException, ClassNotFoundException, InterruptedException {
-
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
+        FileSystem fs = FileSystem.get(this.conf);
         Path tmpNwz = new Path(outputNwz + "_tmp").makeQualified(fs);
+        fs.mkdirs(tmpNwz);
         wordlist = wordlist.makeQualified(fs);
-        System.err.println("33");
         conf.set("wordlist", wordlist.toString());
         conf.set("output.nwz", tmpNwz.toString());
         conf.setInt("num.topics", numTopics);
         conf.setInt("num.words", numWords);
-        FileSystem.get(conf).mkdirs(tmpNwz);
-        Job job = new Job(conf);
-        System.err.println("44");
+
+        Job job = new Job(this.conf);
+        job.setJarByClass(this.getClass());
         job.setJobName("InitializeModelForLDA");
+        job.setJarByClass(this.getClass());
         job.setMapperClass(InitModelMapper.class);
         job.setReducerClass(InitModelReducer.class);
-        job.setNumReduceTasks(20);
+        job.setNumReduceTasks(40);
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(DocumentWritable.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(DocumentWritable.class);
 
+        job.setInputFormatClass(SequenceFileInputFormat.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+
         SequenceFileInputFormat.addInputPath(job, input);
         SequenceFileOutputFormat.setOutputPath(job, outputDocs);
 
-        System.err.println("55");
         job.waitForCompletion(true);
 
         System.err.println("66");
@@ -202,22 +219,25 @@ public class InitModelTool implements GenericTool {
 
     private void combineModelParam(Path inputNwz, Path outputNwz)
             throws IOException, ClassNotFoundException, InterruptedException {
-        Configuration conf = new Configuration();
-        conf.setBoolean("take.mean", false);
-        Job job = new Job(conf);
+        this.conf.setBoolean("take.mean", false);
+        Job job = new Job(this.conf);
         job.setJobName("CombineModelParametersForLDA");
-
-        SequenceFileInputFormat.addInputPath(job, inputNwz);
-        SequenceFileOutputFormat.setOutputPath(job, outputNwz);
+        job.setJarByClass(this.getClass());
 
         job.setMapperClass(IdentityMapper.class);
         job.setReducerClass(CombineModelParamReducer.class);
-        job.setNumReduceTasks(20);
+        job.setNumReduceTasks(40);
 
-        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputKeyClass(LongWritable.class);
         job.setMapOutputValueClass(WordInfoWritable.class);
-        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputKeyClass(LongWritable.class);
         job.setOutputValueClass(WordInfoWritable.class);
+
+        job.setInputFormatClass(SequenceFileInputFormat.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+
+        SequenceFileInputFormat.addInputPath(job, inputNwz);
+        SequenceFileOutputFormat.setOutputPath(job, outputNwz);
 
         job.waitForCompletion(true);
     }

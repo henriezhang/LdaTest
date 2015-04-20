@@ -9,11 +9,13 @@ import java.util.Iterator;
 public class WordListReducer extends Reducer<Text, Text, Text, Text> {
     Text outvalue = new Text();
 
-    public void reduce(Text key, Iterator<Text> values, Context context) throws IOException, InterruptedException {
+    @Override
+    protected void reduce(Text key, Iterable<Text> values, Context context)
+            throws IOException, InterruptedException {
         long tf = 0;
         long df = 0;
-        while (values.hasNext()) {
-            String value = values.next().toString();
+        for (Text item : values) {
+            String value = item.toString();
             if (value.charAt(0) == 'd') {
                 df += Long.parseLong(value.substring(1));
             } else if (value.charAt(0) == 't') {

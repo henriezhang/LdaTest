@@ -6,8 +6,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
@@ -31,12 +29,9 @@ public class InitModelReducer extends Reducer<Text, DocumentWritable, Text, Docu
     String outputNwz = null;
     Random randomProvider = new Random();
 
-    public void reduce(Text key, Iterator<DocumentWritable> values,
-                       OutputCollector<Text, DocumentWritable> output, Reporter reporter)
-            throws IOException {
-        while (values.hasNext()) {
-            DocumentWritable doc = values.next();
-            // Random initialize each word.
+    public void reduce(Text key, Iterable<DocumentWritable> values, Context context)
+            throws IOException, InterruptedException {
+        for (DocumentWritable doc : values) {
             for (int i = 0; i < doc.getNumWords(); i++) {
                 int word = doc.words[i];
                 int topic = randomProvider.nextInt(numTopics);
@@ -50,11 +45,12 @@ public class InitModelReducer extends Reducer<Text, DocumentWritable, Text, Docu
                     counts[topic]++;
                 }
             }
-            output.collect(key, doc);
+            context.write(key, doc);
         }
     }
 
-    protected void setup(Reducer.Context context) throws IOException, InterruptedException {
+    protected void setup(Reducer.Context context)
+            throws IOException, InterruptedException {
         Configuration conf = context.getConfiguration();
         numTopics = conf.getInt("num.topics", 0);
         numWords = conf.getInt("num.words", 0);
@@ -81,7 +77,8 @@ public class InitModelReducer extends Reducer<Text, DocumentWritable, Text, Docu
         }
     }
 
-    protected void cleanup(Reducer.Context context) throws IOException, InterruptedException {
+    protected void cleanup(Reducer.Context context)
+            throws IOException, InterruptedException {
         String partName = "part-" + Math.abs(randomProvider.nextInt());
         Configuration envConf = context.getConfiguration();
         SequenceFile.Writer writer = SequenceFile.createWriter(

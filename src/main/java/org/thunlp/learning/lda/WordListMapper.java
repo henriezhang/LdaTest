@@ -1,5 +1,6 @@
 package org.thunlp.learning.lda;
 
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.thunlp.misc.Counter;
@@ -14,7 +15,8 @@ public class WordListMapper extends Mapper<Text, Text, Text, Text> {
     Text outvalue = new Text();
     Counter<String> wordfreq = new Counter<String>();
 
-    public void map(Text key, Text value, Context context) throws IOException, InterruptedException {
+    public void map(Text key, Text value, Mapper.Context context)
+            throws IOException, InterruptedException {
         String[] words = value.toString().split(" ");
         wordfreq.clear();
         for (String w : words) {

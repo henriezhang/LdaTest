@@ -7,7 +7,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobConf;
 import org.thunlp.misc.Flags;
 import org.thunlp.tool.FolderReader;
 import org.thunlp.tool.GenericTool;
@@ -27,11 +26,16 @@ import java.util.logging.Logger;
 public class LdaTrainer implements GenericTool {
     Logger LOG = Logger.getAnonymousLogger();
     long startTime = 0;
+    Configuration conf = null;
+
+    public LdaTrainer(Configuration conf) {
+        this.conf = conf;
+    }
 
     public void run(String[] args) throws Exception {
         startTime = System.currentTimeMillis();
-        GibbsSamplingTool sampler = new GibbsSamplingTool();
-        InitModelTool initializer = new InitModelTool();
+        GibbsSamplingTool sampler = new GibbsSamplingTool(conf);
+        InitModelTool initializer = new InitModelTool(conf);
 
         Flags flags = new Flags();
         flags.add("input", "input documents, each is space-separated words.");
@@ -78,13 +82,11 @@ public class LdaTrainer implements GenericTool {
         int minDf = flags.getInt("min_df");
 
         // Create model directory.
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
-        /*if (!fs.exists(workingDir)) {
-            System.err.println("begin mkdir working");
+        FileSystem fs = FileSystem.get(this.conf);
+        System.out.println("HomeDir="+fs.getHomeDirectory());
+        if (!fs.exists(workingDir)) {
             fs.mkdirs(workingDir);
-            System.err.println("end mkdir working");
-        }*/
+        }
 
         // Write model hyper-parameters to a file.
         Path parameters = new Path(workingDir, "parameters");
@@ -123,10 +125,10 @@ public class LdaTrainer implements GenericTool {
             Path latestNwz =
                     new Path(workingDir, "nwz." + formatter.format(latest));
             if (fs.exists(latestNwz)) {
-                fs.delete(latestNwz);
+                fs.delete(latestNwz, true);
             }
             if (fs.exists(latestDocs)) {
-                fs.delete(latestDocs);
+                fs.delete(latestDocs, true);
             }
             latest--;
             logAndShow("Remove probably incomplete iteration #" + (latest + 1) +
@@ -144,16 +146,14 @@ public class LdaTrainer implements GenericTool {
         logAndShow("Model initialized.");
 
         // If we start with a plain text file, convert it to SequenceFile first.
-        if (latest == -1 &&
-                flags.getString("input_format").equals("text")) {
+        if (latest == -1 && flags.getString("input_format").equals("text")) {
             Path seqFileInput = new Path(workingDir, "input");
-            PlainTextToSeqFileTool tool = new PlainTextToSeqFileTool();
+            PlainTextToSeqFileTool tool = new PlainTextToSeqFileTool(conf);
             tool.convertToSequenceFile(input, seqFileInput);
             input = seqFileInput;
             logAndShow("Text input converted to SequenceFile.");
         }
 
-        System.err.println("EEEE");
         // Initialize the model.
         if (latest == -1) {
             System.err.println("AAAA");

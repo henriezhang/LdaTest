@@ -1,59 +1,38 @@
 package org.thunlp.tool;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapred.JobConf;
 
 import java.io.IOException;
 
 public class FolderReader {
     private Path path;
     private FileSystem fs;
-    private JobConf conf;
-    String originalFS = "";
+    private Configuration conf;
 
     private SequenceFile.Reader currentReader;
     private FileStatus[] parts;
     private int currentPart;
 
     public FolderReader(Path path) throws IOException {
-        JobConf conf = new JobConf();
-        originalFS = conf.get("fs.defaultFS");  //backup original configuration
-        fs = FileSystem.get(conf);
-        try {
-            if (fs.exists(path)) {
-                init(path, FileSystem.get(conf), conf);
-                return;
-            }
-        } catch (Exception ex) {
-            System.out.println("not hdfs filesystem");
-            System.err.println("not hdfs filesystem");
-        }
-
-        try {
-            conf.set("fs.defaultFS", "file:///");           //change configuration to local file system
-            fs = FileSystem.get(conf);
-            if (fs.exists(path)) {
-                init(path, FileSystem.get(conf), conf);
-                return;
-            }
-        } catch (Exception ex) {
-            System.out.println("not local filesystem");
-            System.err.println("not local filesystem");
-            System.exit(100);
+        Configuration conf = new Configuration();
+        if (fs.exists(path)) {
+            init(path, FileSystem.get(conf), conf);
+            return;
         }
     }
 
-    public FolderReader(Path path, FileSystem fs, JobConf conf)
+    public FolderReader(Path path, FileSystem fs, Configuration conf)
             throws IOException {
         init(path, fs, conf);
     }
 
-    private void init(Path path, FileSystem fs, JobConf conf)
+    private void init(Path path, FileSystem fs, Configuration conf)
             throws IOException {
         this.path = path;
         this.fs = fs;
@@ -106,8 +85,4 @@ public class FolderReader {
                 new SequenceFile.Reader(fs, parts[currentPart].getPath(), conf);
         return true;
     }
-
-    /*public void end() {
-    conf.set("fs.defaultFS",originalFS);           //restore original configuration
-    }*/
 }

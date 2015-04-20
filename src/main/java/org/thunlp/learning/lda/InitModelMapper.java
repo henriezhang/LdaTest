@@ -1,6 +1,7 @@
 package org.thunlp.learning.lda;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -49,7 +50,7 @@ public class InitModelMapper extends Mapper<Text, Text, Text, DocumentWritable> 
     protected void setup(Mapper.Context context) throws IOException, InterruptedException {
         Configuration conf = context.getConfiguration();
         try {
-            wordmap = loadWordList(conf.get("wordlist"));
+            wordmap = loadWordList(conf.get("wordlist"), conf);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -62,17 +63,16 @@ public class InitModelMapper extends Mapper<Text, Text, Text, DocumentWritable> 
     /**
      * Load word to id mapping.
      */
-    private Map<String, Integer> loadWordList(String wordFile)
+    private Map<String, Integer> loadWordList(String wordFile, Configuration conf)
             throws IOException {
         Hashtable<String, Integer> keymap = new Hashtable<String, Integer>();
-        FolderReader reader = new FolderReader(new Path(wordFile));
+        FolderReader reader = new FolderReader(new Path(wordFile), FileSystem.get(conf), conf);
         Text key = new Text();
         IntWritable value = new IntWritable();
         while (reader.next(key, value)) {
             keymap.put(key.toString(), value.get());
         }
         reader.close();
-        //reader.end();
         return keymap;
     }
 }

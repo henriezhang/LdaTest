@@ -5,7 +5,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
@@ -33,6 +32,11 @@ import java.io.IOException;
  */
 public class GibbsSamplingTool implements GenericTool {
     public static double RESOLUTION = 0.01;
+    public Configuration conf = null;
+
+    public GibbsSamplingTool(Configuration conf) {
+        this.conf = conf;
+    }
 
     public void run(String[] args) throws Exception {
         Flags flags = new Flags();
@@ -80,9 +84,7 @@ public class GibbsSamplingTool implements GenericTool {
             double alpha, double beta,
             int numTopics, int numWords)
             throws IOException, ClassNotFoundException, InterruptedException {
-        Configuration conf = new Configuration();
-
-        FileSystem fs = FileSystem.get(conf);
+        FileSystem fs = FileSystem.get(this.conf);
         Path tmpNwz = new Path(outputNwz + "_tmp").makeQualified(fs);
         inputNwz = inputNwz.makeQualified(fs);
         fs.mkdirs(tmpNwz);
@@ -120,9 +122,9 @@ public class GibbsSamplingTool implements GenericTool {
 
     private void combineModelParam(Path refNwz, Path inputNwz, Path outputNwz)
             throws IOException, ClassNotFoundException, InterruptedException {
-        Configuration conf = new Configuration();
-        Job job = new Job(conf);
+        Job job = new Job(this.conf);
         job.setJobName("CombineModelParametersForLDA");
+        job.setJarByClass(this.getClass());
 
         SequenceFileInputFormat.addInputPath(job, inputNwz);
         SequenceFileInputFormat.addInputPath(job, refNwz);
