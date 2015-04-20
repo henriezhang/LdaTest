@@ -2,6 +2,7 @@ package org.thunlp.learning.lda;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
@@ -13,14 +14,14 @@ import java.util.Iterator;
  *
  * @author sixiance
  */
-public class CombineModelParamReducer extends Reducer<IntWritable, WordInfoWritable,
-        IntWritable, WordInfoWritable> {
+public class CombineModelParamReducer extends Reducer<LongWritable, WordInfoWritable,
+        LongWritable, WordInfoWritable> {
     private int[] topicCount = null;
     private int[] referenceCount = null;
     private WordInfoWritable outvalue = null;
     private boolean takeMean = true;
 
-    public void reduce(IntWritable key, Iterator<WordInfoWritable> values, Context context) throws IOException, InterruptedException {
+    public void reduce(LongWritable key, Iterator<WordInfoWritable> values, Context context) throws IOException, InterruptedException {
         int n = 0;
         while (values.hasNext()) {
             WordInfoWritable v = values.next();
